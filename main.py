@@ -12,6 +12,8 @@ sh = 720
 sc = (sw / 2, sh / 2)
 screen_color = (34, 137, 134)
 
+scale_or_fov = 1000
+
 pg.display.set_caption("3D")
 win = pg.display.set_mode((sw, sh))
 win.fill(screen_color)
@@ -41,6 +43,8 @@ class Camera(object):
         self.moving_back = False
         self.moving_left = False
         self.moving_right = False
+        self.speed = 2.5
+        self.color = (180, 120, 60)
 
     def angles_to_pointing_vec(self):
         self.pointing_vec[1] = math.sin(math.radians(self.angle_y))
@@ -58,21 +62,35 @@ class Camera(object):
     def movement(self):
         did_i_move = False
         if self.moving_forward:
-            self.location[0] += math.cos(math.radians(self.angle_x))
-            self.location[2] += math.sin(math.radians(self.angle_x))
+            self.location[0] += math.cos(math.radians(self.angle_x)) * self.speed
+            self.location[2] += math.sin(math.radians(self.angle_x)) * self.speed
+            did_i_move = True
+        if self.moving_left:
+            self.location[0] += math.cos(math.radians(self.angle_x - 90)) * self.speed
+            self.location[2] += math.sin(math.radians(self.angle_x - 90)) * self.speed
+            did_i_move = True
+        if self.moving_right:
+            self.location[0] += math.cos(math.radians(self.angle_x + 90)) * self.speed
+            self.location[2] += math.sin(math.radians(self.angle_x + 90)) * self.speed
+            did_i_move = True
+        if self.moving_back:
+            self.location[0] += math.cos(math.radians(self.angle_x - 180)) * self.speed
+            self.location[2] += math.sin(math.radians(self.angle_x - 180)) * self.speed
             did_i_move = True
 
         return did_i_move
 
     def draw(self, win):
         for i in self.quads_to_draw:
-            pg.draw.polygon(win, (50, 100, 200), i, 1)
+            pg.draw.polygon(win, (random.randrange(20)+100, 100, 200) , i  , 1)
+            #  (random.randrange(20)+100, 100, 200)
+            #  (random.randrange(20) + self.color[0], random.randrange(20) + self.color[1], random.randrange(20) + self.color[2])
 
 
 class Cube(object):
-    def __init__(self, center):
+    def __init__(self, center, side_in):
         self.center = center
-        self.side = 20
+        self.side = side_in
         self.close_sides = []
         self.three_d_poss = []
         self.two_d_poss = []
@@ -113,7 +131,7 @@ class Cube(object):
         self.close_sides = []
 
         for i in [(1, 3, 4, 2), (5, 7, 8, 6), (1, 5, 7, 3), (6, 2, 4, 8), (5, 6, 2, 1), (4, 3, 7, 8)]:
-            if not self.contains(i, close_corner):
+            if self.contains(i, close_corner):
                 self.close_sides.append(i)
 
     def get_closest_corner(self, camera_location):
@@ -144,7 +162,7 @@ class Cube(object):
 
         quads_to_return = []
 
-        # for i in self.close_sides:  set it to this later
+        #for i in self.close_sides:
         for i in [(1, 3, 4, 2), (5, 7, 8, 6), (1, 5, 7, 3), (6, 2, 4, 8), (5, 6, 2, 1), (4, 3, 7, 8)]:
             quads_to_return.append((self.two_d_poss[i[0] - 1], self.two_d_poss[i[1] - 1], self.two_d_poss[i[2] - 1],
                                     self.two_d_poss[i[3] - 1]))
@@ -167,11 +185,20 @@ class Cube(object):
             cos_angle_uhs_top = u_from_h[0] * s_from_h[0] + u_from_h[1] * s_from_h[1] + u_from_h[2] * s_from_h[2]
             cos_angle_uhs_bottom = pythag(u_from_h) * pythag(s_from_h)
             cos_angle_uhs = cos_angle_uhs_top / cos_angle_uhs_bottom
+            if cos_angle_uhs > 1:
+                cos_angle_uhs = 1
+            if cos_angle_uhs < -1:
+                cos_angle_uhs = -1
             angle_uhs = math.acos(cos_angle_uhs)
             slope = [cos_angle_uhs, math.sin(angle_uhs)]
             angle_vos = math.acos(v_s_dot_product / (pythag(v) * pythag(s)))
-            return_x = angle_vos / math.sqrt(1 + ((slope[1] / slope[0]) ** 2))
-            return_y = return_x * abs((slope[1] / slope[0]))
+            if slope[0] == 0:
+                return_x = 0
+                return_y = angle_vos
+                print("heyo")
+            else:
+                return_x = angle_vos / math.sqrt(1 + ((slope[1] / slope[0]) ** 2))
+                return_y = return_x * abs((slope[1] / slope[0]))
 
             #   this is where i need to do fov and stuff
 
@@ -180,8 +207,6 @@ class Cube(object):
 
             if h[1] > s[1]:
                 return_y *= -1
-
-            scale_or_fov = 740
 
             return_y *= scale_or_fov
             return_x *= scale_or_fov
@@ -207,17 +232,9 @@ def redraw_game_window():
 
 cubes = []
 
-# cubes.append(Cube((150, 0, -20)))
-# cubes.append(Cube((150, 0, 0)))
-# cubes.append(Cube((150, 0, 20)))
-# cubes.append(Cube((150, 20, 0)))
-# cubes.append(Cube((150, -20, 0)))
-# cubes.append(Cube((0, 200, 850)))
-# cubes.append(Cube((200, 0, 350)))
+# cubes.append(Cube((CENTER CORDS), SIDE LENGTH))
+cubes.append(Cube((50, -30, 0), 7))
 
-for i in range(10):
-    for ii in range(10):
-        cubes.append(Cube((i * 20, 0, ii * 20)))
 
 camera = Camera()
 
@@ -234,6 +251,8 @@ def camera_moved():
 
 camera_moved()
 
+mouse_free = True
+
 running = True
 while running:
 
@@ -245,19 +264,47 @@ while running:
         if event.type == pg.QUIT:
             running = False
 
-        if event.type == pg.MOUSEMOTION:
+        if event.type == pg.MOUSEMOTION and not mouse_free:
             mouse_cords = ((pg.mouse.get_pos()[0] - sw / 2), pg.mouse.get_pos()[1] - sh / 2)
-            camera.angle_y = (mouse_cords[1] / (sh / 2)) * 90
-            camera.angle_x = (mouse_cords[0] / (sw / 2)) * 160 + .01  # if it is 0 it crashes so i added .01
+            camera.angle_y += (mouse_cords[1] / (sh / 2)) * 45
+            camera.angle_x += (mouse_cords[0] / (sw / 2)) * 80 + .01  # if it is 0 it crashes so i added .01
             did_camera_move = True
+            if camera.angle_y > 90:
+                camera.angle_y = 89
+            elif camera.angle_y < -90:
+                camera.angle_y = -89
+            if camera.angle_x > 360:
+                camera.angle_x -= 360
+            elif camera.angle_x < -360:
+                camera.angle_x += 360
+
+
+            pg.mouse.set_pos((sw / 2, sh / 2))
 
         if event.type == pg.KEYDOWN:
+            if event.key == pg.K_s:
+                pg.mouse.set_visible(not pg.mouse.get_visible())
+            if event.key == pg.K_ESCAPE:
+                mouse_free = (not mouse_free)
             if event.key == pg.K_UP:
                 camera.moving_forward = True
+            if event.key == pg.K_LEFT:
+                camera.moving_left = True
+            if event.key == pg.K_RIGHT:
+                camera.moving_right = True
+            if event.key == pg.K_DOWN:
+                camera.moving_back = True
+
 
         if event.type == pg.KEYUP:
             if event.key == pg.K_UP:
                 camera.moving_forward = False
+            if event.key == pg.K_LEFT:
+                camera.moving_left = False
+            if event.key == pg.K_RIGHT:
+                camera.moving_right = False
+            if event.key == pg.K_DOWN:
+                camera.moving_back = False
 
     if camera.movement():
         did_camera_move = True
